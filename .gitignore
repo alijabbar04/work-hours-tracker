@@ -1,0 +1,54 @@
+# Python environments, caches and tooling
+.venv/
+.build-venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.idea/
+.vscode/
+
+# Generated builds and distribution artifacts
+build/
+dist/
+release/
+release-licenses/
+*.exe
+*.msi
+*.apk
+*.zip
+
+# Private runtime data. Never commit a user's work, invoices or credentials.
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+*.pdf
+*.html
+*.log
+*.bak
+config.json
+backups/
+invoices/
+inbox/
+data/
+test-data/
+transfer-backup/
+processed/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*credentials*.json
+*token*.json
+
+# Operating-system files
+Thumbs.db
+Desktop.ini
+.DS_Store

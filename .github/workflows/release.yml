@@ -1,0 +1,83 @@
+name: Windows release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
+          architecture: x64
+          cache: pip
+      - name: Check tag matches version
+        shell: pwsh
+        run: |
+          $version = (Get-Content -Raw -LiteralPath VERSION).Trim()
+          if ($env:RELEASE_TAG -ne "v$version") {
+            throw 'The release tag must match VERSION.'
+          }
+      - name: Build, test and package
+        shell: pwsh
+        run: .\build.ps1
+      - name: Publish release assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $assets = @(Get-ChildItem -LiteralPath release -File | Where-Object { $_.Name -match '\.zip(\.sha256)?$' } | ForEach-Object { $_.FullName })
+          if ($assets.Count -ne 2) { throw 'Expected one release ZIP and its checksum.' }
+          $existingJson = gh release view $env:RELEASE_TAG --json assets 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:RELEASE_TAG @assets --verify-tag --title "Work Hours Tracker $env:RELEASE_TAG" --notes-file .github/RELEASE_NOTES.md
+            if ($LASTEXITCODE -ne 0) { throw 'GitHub release creation failed.' }
+          } else {
+            $existingNames = @(($existingJson | ConvertFrom-Json).assets | ForEach-Object { $_.name })
+            $zip = $assets | Where-Object { $_ -match '\.zip$' }
+            $checksum = $assets | Where-Object { $_ -match '\.sha256$' }
+            $zipName = Split-Path -Leaf $zip
+            $checksumName = Split-Path -Leaf $checksum
+            if (($existingNames -contains $zipName) -and ($existingNames -contains $checksumName)) {
+              Write-Host 'Release ZIP and checksum already exist; leaving published assets unchanged.'
+            } elseif ($existingNames -contains $zipName) {
+              # Hash the published ZIP, not a rebuild that might differ.
+              $downloadDir = Join-Path $env:RUNNER_TEMP 'existing-release'
+              New-Item -ItemType Directory -Path $downloadDir -Force | Out-Null
+              gh release download $env:RELEASE_TAG --pattern $zipName --dir $downloadDir
+              if ($LASTEXITCODE -ne 0) { throw 'Could not download the published ZIP.' }
+              $hash = (Get-FileHash -LiteralPath (Join-Path $downloadDir $zipName) -Algorithm SHA256).Hash.ToLowerInvariant()
+              "$hash  $zipName" | Set-Content -LiteralPath $checksum -Encoding ascii
+              gh release upload $env:RELEASE_TAG $checksum
+              if ($LASTEXITCODE -ne 0) { throw 'Checksum upload failed.' }
+            } elseif ($existingNames -contains $checksumName) {
+              $downloadDir = Join-Path $env:RUNNER_TEMP 'existing-release'
+              New-Item -ItemType Directory -Path $downloadDir -Force | Out-Null
+              gh release download $env:RELEASE_TAG --pattern $checksumName --dir $downloadDir
+              if ($LASTEXITCODE -ne 0) { throw 'Could not download the published checksum.' }
+              $publishedHash = ((Get-Content -Raw -LiteralPath (Join-Path $downloadDir $checksumName)).Trim() -split '\s+')[0]
+              $builtHash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
+              if ($publishedHash -ne $builtHash) { throw 'Published checksum does not match the rebuilt ZIP; no assets changed.' }
+              gh release upload $env:RELEASE_TAG $zip
+              if ($LASTEXITCODE -ne 0) { throw 'ZIP upload failed.' }
+            } else {
+              gh release upload $env:RELEASE_TAG @assets
+              if ($LASTEXITCODE -ne 0) { throw 'Release asset upload failed.' }
+            }
+          }

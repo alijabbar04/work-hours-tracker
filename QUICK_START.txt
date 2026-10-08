@@ -1,0 +1,37 @@
+WORK HOURS TRACKER 1.0.0 - WINDOWS X64
+
+1. Extract the downloaded ZIP into a folder you intend to keep.
+2. Open Work Hours Tracker.exe. No Python installation is required.
+3. Choose an optional hourly rate on the welcome screen, or skip it.
+4. Record an entry in Log Today. Review it in Timesheet.
+5. Add invoice details in Settings only when you want to make invoices.
+
+DESKTOP SHORTCUT
+Right-click Work Hours Tracker.exe, choose Show more options, then
+Send to > Desktop (create shortcut). Keep the extracted app in place.
+
+YOUR DATA
+On Windows, the app stores your own workbook, settings, backups and
+invoices in %LOCALAPPDATA%\WorkHoursTracker. These are unencrypted files.
+No personal workbook, configuration or API key is included in this ZIP.
+Back up the data folder privately before moving to another computer.
+
+PRIVACY
+Tracking works locally without an account. Cloud exports, AI, and
+reminders are optional and disabled until you choose them. Read PRIVACY.md
+before enabling mirroring or mobile exports. An exported mobile HTML file
+contains work data, so keep it private.
+
+UPDATING
+Close the app, extract the new release into a separate app folder and
+launch it. It uses the same local data folder. Make a backup first and
+update your shortcut if you move the executable.
+
+TROUBLESHOOTING
+Close the workbook in Excel before saving in the tracker. Check another
+instance is not already open. Never share your data folder or API key in
+an issue report. The repository README has source setup and support notes.
+
+SECURITY
+Releases are unsigned. Verify the ZIP against its published SHA256 file
+and inspect the source if you need to. Keep Windows protection enabled.

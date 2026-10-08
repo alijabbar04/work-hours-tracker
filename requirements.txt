@@ -1,0 +1,7 @@
+# Tested direct runtime dependencies. Python 3.11-3.14, 64-bit recommended.
+openpyxl==3.1.5
+keyring==25.7.0
+requests==2.34.2
+reportlab==5.0.1
+matplotlib==3.11.2
+Pillow==12.3.0
