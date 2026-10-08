@@ -22,8 +22,6 @@ jobs:
             python: '3.14'
           - os: ubuntu-latest
             python: '3.11'
-    env:
-      WORK_HOURS_TRACKER_DATA_DIR: ${{ runner.temp }}/work-hours-tracker-tests
     steps:
       - name: Check out source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -39,4 +37,6 @@ jobs:
       - name: Check dependency consistency
         run: python -m pip check
       - name: Run tests
+        env:
+          WORK_HOURS_TRACKER_DATA_DIR: ${{ runner.temp }}/work-hours-tracker-tests
         run: python -m pytest tests -q
