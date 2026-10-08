@@ -4,6 +4,7 @@ import datetime as dt
 import json
 import os
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -76,12 +77,23 @@ class TestMobileGeneration:
         assert (tmp_path / "extra" / mobile.MOBILE_FILENAME).exists()
         assert (tmp_path / "mirror" / "inbox").is_dir()
 
-    def test_export_never_raises_on_bad_dir(self):
+    def test_export_never_raises_on_bad_dir(self, tmp_path, monkeypatch):
         cfg = dict(CFG)
-        cfg["onedrive_mirror_dir"] = "Z:\\definitely\\not\\a\\drive"
+        blocked = tmp_path / "unavailable-mirror"
+        cfg["onedrive_mirror_dir"] = str(blocked)
         cfg["mobile_copy_dirs"] = []
+        original_makedirs = mobile.os.makedirs
+
+        def unavailable_directory(path, *args, **kwargs):
+            if Path(path).resolve().is_relative_to(blocked):
+                raise PermissionError("synthetic mirror permission denied")
+            return original_makedirs(path, *args, **kwargs)
+
+        monkeypatch.setattr(mobile.os, "makedirs", unavailable_directory)
         results = mobile.export_all(ENTRIES, cfg)
-        assert results and results[0][1] is not None  # error captured, not raised
+        assert results == [(str(blocked / mobile.MOBILE_FILENAME),
+                            "synthetic mirror permission denied")]
+        assert not blocked.exists()  # error captured, not raised
 
     def test_inbox_label_from_mirror_path(self):
         cfg = dict(CFG)
@@ -137,9 +149,20 @@ class TestReconcileMirror:
         assert store.reconcile_mirror() is True
 
     def test_unreachable_mirror_returns_false(self, tmp_path, monkeypatch):
-        store, _ = self.make_store(tmp_path, monkeypatch)
-        store.cfg["onedrive_mirror_dir"] = "Z:\\nope"
+        from core import excel_store
+        store, mirror_file = self.make_store(tmp_path, monkeypatch)
+        mirror_file.unlink()  # force reconciliation to attempt a copy
+        original_copy = excel_store.shutil.copy2
+
+        def unavailable_copy(source, destination, *args, **kwargs):
+            if Path(destination) == mirror_file:
+                raise FileNotFoundError("synthetic mirror unavailable")
+            return original_copy(source, destination, *args, **kwargs)
+
+        monkeypatch.setattr(excel_store.shutil, "copy2", unavailable_copy)
         assert store.reconcile_mirror() is False  # no exception
+        assert store.last_mirror_error == "synthetic mirror unavailable"
+        assert Path(store.path).exists() and not mirror_file.exists()
 
 
 class TestInbox:
